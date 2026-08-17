@@ -1,0 +1,48 @@
+# ==========================================
+# FolderSynka
+# ==========================================
+
+# Runtime data
+runtime/
+
+# Local runtime
+.foldersynka/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.*
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# Build
+dist/
+build/
+
+# Coverage
+coverage/
+
+# Node
+node_modules/
+
+# Git
+*.orig

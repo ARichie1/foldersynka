@@ -1,0 +1,91 @@
+#!/data/data/com.termux/files/usr/bin/bash
+
+###############################################################################
+# FolderSynka
+# File: bin/foldersynka
+#
+# Description:
+#   Main FolderSynka executable.
+#
+# Responsibilities:
+#   • Establish installed application paths
+#   • Verify the installation
+#   • Launch the CLI router
+#
+###############################################################################
+
+set -euo pipefail
+
+###############################################################################
+# Project Paths
+###############################################################################
+
+export FS_HOME="${PREFIX}/share/foldersynka"
+export FS_RUNTIME="${HOME}/.foldersynka"
+
+readonly FS_ROUTER="${FS_HOME}/core/cli/router.sh"
+
+###############################################################################
+# Verify Environment
+###############################################################################
+
+if [[ -z "${PREFIX:-}" ]]; then
+
+    printf 'FolderSynka: PREFIX is not configured.\n' >&2
+
+    exit 1
+
+fi
+
+if [[ -z "${HOME:-}" ]]; then
+
+    printf 'FolderSynka: HOME is not configured.\n' >&2
+
+    exit 1
+
+fi
+
+###############################################################################
+# Verify Installation
+###############################################################################
+
+if [[ ! -d "$FS_HOME" ]]; then
+
+    printf 'FolderSynka is not installed correctly.\n' >&2
+    printf '\n' >&2
+    printf 'Application directory not found:\n' >&2
+    printf '  %s\n' "$FS_HOME" >&2
+    printf '\n' >&2
+    printf 'Run install.sh from the FolderSynka repository.\n' >&2
+
+    exit 1
+
+fi
+
+if [[ ! -f "$FS_ROUTER" ]]; then
+
+    printf 'FolderSynka installation is incomplete.\n' >&2
+    printf '\n' >&2
+    printf 'CLI router not found:\n' >&2
+    printf '  %s\n' "$FS_ROUTER" >&2
+
+    exit 1
+
+fi
+
+if [[ ! -x "$FS_ROUTER" ]]; then
+
+    printf 'FolderSynka installation is incomplete.\n' >&2
+    printf '\n' >&2
+    printf 'CLI router is not executable:\n' >&2
+    printf '  %s\n' "$FS_ROUTER" >&2
+
+    exit 1
+
+fi
+
+###############################################################################
+# Start CLI
+###############################################################################
+
+exec "$FS_ROUTER" "$@"
