@@ -136,7 +136,7 @@ FolderSynka can be installed directly from the project repository.
 
 Clone the project and enter the repository:
 
-    git clone <repository-url>
+    git clone https://github.com/ARichie1/foldersynka.git
 
     cd foldersynka
 
