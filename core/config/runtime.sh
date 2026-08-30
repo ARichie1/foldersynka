@@ -90,7 +90,15 @@ fs_runtime_verify() {
 
 fs_runtime_ensure() {
 
-    if fs_runtime_verify; then
+    if [[ -d "$FS_RUNTIME_DIR" ]] &&
+        [[ -d "$FS_CONFIG_DIR" ]] &&
+        [[ -d "$FS_STATE_DIR" ]] &&
+        [[ -d "$FS_LOG_DIR" ]] &&
+        [[ -d "$FS_PID_DIR" ]] &&
+        [[ -d "$FS_LOCK_DIR" ]] &&
+        [[ -d "$FS_CACHE_DIR" ]] &&
+        [[ -d "$FS_SERVICE_DIR" ]]
+    then
         return 0
     fi
 

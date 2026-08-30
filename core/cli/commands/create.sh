@@ -62,9 +62,6 @@ Options
     --no-delete
         Disable deletion of removed files.
 
-    --interval
-        Set watcher debounce interval.
-
     --watch
         Start the profile after creation.
 
@@ -111,6 +108,12 @@ fs_command_create() {
     fi
 
     ###########################################################################
+    # Runtime
+    ###########################################################################
+
+    fs_runtime_ensure
+
+    ###########################################################################
     # Validation Pipeline
     ###########################################################################
 
@@ -135,11 +138,23 @@ fs_command_create() {
         "$source" \
         "$destination"
 
+    if fs_args_has compress; then
+        fs_profile_set "$profile" COMPRESS "true"
+    fi
+
+    if fs_args_has checksum; then
+        fs_profile_set "$profile" CHECKSUM "true"
+    fi
+
+    if fs_args_has delete; then
+        fs_profile_set "$profile" DELETE "$(fs_args_get delete)"
+    fi
+
     ###########################################################################
     # Ignore File
     ###########################################################################
 
-    fs_ignore_init "$source"
+    fs_ignore_init "$profile"
 
     ###########################################################################
     # Success
@@ -153,7 +168,7 @@ fs_command_create() {
     printf '\n'
 
     printf 'Next steps\n'
-    printf '----------\n'
+    printf '%s\n' '----------'
     printf 'foldersynka start %s\n' "$profile"
 
     ###########################################################################
@@ -164,7 +179,7 @@ fs_command_create() {
 
         printf '\nStarting profile...\n\n'
 
-        foldersynka start "$profile"
+        bash "${FS_HOME}/core/cli/commands/start.sh" "$profile"
 
     fi
 

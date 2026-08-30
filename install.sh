@@ -54,7 +54,7 @@ fs_install_error() {
 # Environment
 ###############################################################################
 
-fs_validate_environment() {
+fs_install_validate_environment() {
 
     [[ -n "${PREFIX:-}" ]] || \
         fs_install_error "PREFIX is not configured."
@@ -217,7 +217,7 @@ fs_install() {
     printf '=====================\n'
     printf '\n'
 
-    fs_validate_environment
+    fs_install_validate_environment
     fs_validate_repository
 
     fs_prepare_installation

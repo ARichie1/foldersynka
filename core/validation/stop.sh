@@ -55,12 +55,19 @@ fs_validation_pipeline_stop() {
         "$profile" \
         || return 1
 
-    if ! fs_state_is_running "$profile"; then
-        fs_validation_fail \
-            "$FS_ERR_NOT_RUNNING" \
-            "profile"
-        return 1
-    fi
+    local status
+    status="$(fs_state_status "$profile")"
+
+    case "$status" in
+        starting|syncing|running)
+            ;;
+        *)
+            fs_validation_fail \
+                "$FS_ERR_NOT_RUNNING" \
+                "profile"
+            return 1
+            ;;
+    esac
 
     fs_pipeline_success
 }

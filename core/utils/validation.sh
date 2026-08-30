@@ -309,23 +309,15 @@ fs_validate_sv() {
 ###############################################################################
 
 fs_validate_storage() {
-    [[ -d "/storage/emulated/0" ]]
+    if [[ -d "/storage/emulated/0" ]]; then
+        return 0
+    fi
+
+    [[ -d "${HOME}/storage/shared" ]]
 }
 
 fs_validate_storage_permission() {
     [[ -d "$HOME/storage" ]]
-}
-
-fs_validate_source_directory() {
-    local directory="$1"
-
-    [[ -d "$directory" ]]
-}
-
-fs_validate_destination_directory() {
-    local directory="$1"
-
-    [[ -d "$directory" ]]
 }
 
 fs_validate_writable_directory() {

@@ -18,6 +18,11 @@
 #   • Protected path detection
 #
 ###############################################################################
+if [[ "${FS_FILESYSTEM_LOADED:-false}" == "true" ]]; then
+    return 0
+fi
+
+FS_FILESYSTEM_LOADED=true
 
 set -euo pipefail
 
@@ -188,30 +193,6 @@ fs_path_info() {
         "$(fs_is_readable "$path" && echo yes || echo no)"
     printf "Writable   : %s\n" \
         "$(fs_is_writable "$path" && echo yes || echo no)"
-}
-
-###############################################################################
-# Directory Validation
-###############################################################################
-
-fs_validate_source_directory() {
-    local source="$1"
-
-    if ! fs_directory_exists "$source"; then
-        fs_print_error "Source directory not found: $source"
-        return 1
-    fi
-
-    if ! fs_is_readable "$source"; then
-        fs_print_error "Source directory is not readable: $source"
-        return 1
-    fi
-}
-
-fs_validate_destination_directory() {
-    local destination="$1"
-
-    fs_require_safe_path "$destination" || return 1
 }
 
 ###############################################################################
@@ -563,7 +544,7 @@ fs_sha256() {
 # Diagnostics
 ###############################################################################
 
-fs_print_info() {
+fs_print_path_info() {
     local path="$1"
 
     printf "Path          : %s\n" "$path"
@@ -584,7 +565,7 @@ fs_print_info() {
 }
 
 fs_self_test() {
-    fs_print_info "$HOME"
+    fs_print_path_info "$HOME"
 
     fs_print_key_value "HOME" "$HOME"
     fs_print_key_value "PREFIX" "$PREFIX"

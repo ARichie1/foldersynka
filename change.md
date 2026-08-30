@@ -2,9 +2,9 @@
 
 FolderSynka — Change Log Working Notes
 
-«Status: In progress
+«Status: Complete — v1.0.0 release candidate verified
 Purpose: Internal record of corrections made during the pre-v1 cleanup.
-Final: This file will later be used to produce the official "CHANGELOG.md".»
+Final: This file is the authoritative working ledger used to produce the official "CHANGELOG.md".»
 
 ---
 
@@ -1614,3 +1614,110 @@ After all correction phases are complete:
 
 This file is intentionally not the final changelog.
 It is the technical ledger used to construct it.
+
+
+---
+
+# Phase 11 — Tests & Full Application Verification
+
+## Objective
+
+Exercise the complete FolderSynka lifecycle before release.
+
+## Added
+
+- Added `tests/test.sh` as the integration test suite.
+- Added temporary test environments for runtime, profiles, source/destination
+  workspaces, and Termux service simulation.
+
+## Verified
+
+- Version and help commands.
+- Profile creation.
+- Profile listing.
+- Profile status.
+- Profile configuration persistence.
+- Compression/checksum/delete configuration flags.
+- `.foldersynkaignore` initialization.
+- Ignore rule addition and listing.
+- Environment diagnostics.
+- Initial synchronization.
+- Event-driven synchronization through `inotifywait`.
+- Service creation.
+- Service start.
+- Service status.
+- Service stop.
+- Profile removal.
+- Installation and uninstallation flow.
+
+## Result
+
+The complete application lifecycle was exercised successfully.
+
+Final integration test result:
+
+`20 passed, 0 failed`
+
+---
+
+# Phase 12 — Documentation / CHANGELOG
+
+## Changes
+
+- Corrected documentation to match the final command surface.
+- Removed the undocumented/unfinished `--interval` command option.
+- Corrected the documented `.foldersynkaignore` template path.
+- Added the repository integration-testing instructions.
+- Corrected the release version in the official changelog from the stale
+  `1.0.0` release version.
+- Rebuilt `CHANGELOG.md` from the completed working notes.
+
+---
+
+# Phase 13 — Cleanup & Release Candidate
+
+## Status
+
+Complete — v1.0.0 release candidate verified.
+
+## Final cleanup
+
+- Removed accidental junk text from `install.sh`.
+- Made `tests/test.sh` executable (`755`).
+- Verified all shell files with `bash -n`.
+- Corrected unknown CLI commands to return a non-zero exit status.
+- Added the canonical `fs_ignore_read` API.
+- Corrected directory-pattern matching in `fs_ignore_is_ignored`.
+- Expanded integration coverage for invalid CLI input, ignore lifecycle operations, and service restart.
+- Corrected installation to initialize the complete runtime directory structure.
+- Updated release version references to `1.0.0`.
+
+## Final verification
+
+- Integration test suite: **31 passed, 0 failed**.
+- Installation lifecycle: **passed** in a Termux-like test environment.
+- Shell syntax validation: **passed** for all shell files.
+- Test runner permissions: `tests/test.sh` is executable.
+
+# Phase 14 — Public Publishing / v1.0.0 Release
+
+## Status
+
+Release package prepared.
+
+## Release boundary
+
+- Release version: `1.0.0`.
+- No additional application features added.
+- `VERSION` is `1.0.0`.
+- `CHANGELOG.md` documents the completed release.
+- `README.md` reflects the final command surface and workflow.
+- Release candidate archive generated for user testing.
+
+## Standard Git commit message
+
+`chore(release): v1.0.0`
+
+## User testing
+
+The project is ready for final black-box testing from the user's Termux environment before pushing the release to the public GitHub repository.

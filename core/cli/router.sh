@@ -59,52 +59,53 @@ esac
 case "$COMMAND" in
 
     help)
-        exec "${CLI_DIR}/help.sh" "$@"
+        exec bash "${CLI_DIR}/help.sh" "$@"
         ;;
 
     version)
-        exec "${COMMAND_DIR}/version.sh" "$@"
+        exec bash "${COMMAND_DIR}/version.sh" "$@"
         ;;
 
     create)
-        exec "${COMMAND_DIR}/create.sh" "$@"
+        exec bash "${COMMAND_DIR}/create.sh" "$@"
         ;;
 
     start)
-        exec "${COMMAND_DIR}/start.sh" "$@"
+        exec bash "${COMMAND_DIR}/start.sh" "$@"
         ;;
 
     stop)
-        exec "${COMMAND_DIR}/stop.sh" "$@"
+        exec bash "${COMMAND_DIR}/stop.sh" "$@"
         ;;
 
     restart)
-        exec "${COMMAND_DIR}/restart.sh" "$@"
+        exec bash "${COMMAND_DIR}/restart.sh" "$@"
         ;;
 
     status)
-        exec "${COMMAND_DIR}/status.sh" "$@"
+        exec bash "${COMMAND_DIR}/status.sh" "$@"
         ;;
 
     list)
-        exec "${COMMAND_DIR}/list.sh" "$@"
+        exec bash "${COMMAND_DIR}/list.sh" "$@"
         ;;
 
     remove)
-        exec "${COMMAND_DIR}/remove.sh" "$@"
+        exec bash "${COMMAND_DIR}/remove.sh" "$@"
         ;;
 
     doctor)
-        exec "${COMMAND_DIR}/doctor.sh" "$@"
+        exec bash "${COMMAND_DIR}/doctor.sh" "$@"
         ;;
 
     ignore)
-        exec "${COMMAND_DIR}/ignore.sh" "$@"
+        exec bash "${COMMAND_DIR}/ignore.sh" "$@"
         ;;
 
     *)
-        printf '\nUnknown command: %s\n\n' "$COMMAND"
-        exec "${CLI_DIR}/help.sh"
+        printf '\nUnknown command: %s\n\n' "$COMMAND" >&2
+        bash "${CLI_DIR}/help.sh" >&2
+        exit 1
         ;;
 
 esac

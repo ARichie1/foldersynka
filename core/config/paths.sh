@@ -6,33 +6,34 @@
 #
 # Description:
 #   Defines filesystem locations used by FolderSynka.
-#
-# Responsibilities:
-#   • Define installation paths
-#   • Define runtime paths
-#   • Construct profile paths
-#   • Construct service paths
-#
-# This module must not:
-#   • Create directories
-#   • Delete files
-#   • Modify configuration
-#   • Execute external commands
 ###############################################################################
 
+if [[ "${FS_PATHS_LOADED:-false}" == "true" ]]; then
+    return 0
+fi
+
+FS_PATHS_LOADED=true
+
 set -euo pipefail
+
+###############################################################################
+# Bootstrap
+###############################################################################
+
+if [[ -z "${FS_HOME:-}" ]]; then
+    FS_HOME="${PREFIX}/share/foldersynka"
+fi
 
 ###############################################################################
 # Dependencies
 ###############################################################################
 
-source "${FS_HOME:-${PREFIX}/share/foldersynka}/core/lib/constants.sh"
+source "${FS_HOME}/core/lib/constants.sh"
 
 ###############################################################################
 # Installation Paths
 ###############################################################################
 
-readonly FS_HOME="${FS_HOME:-${PREFIX}/share/foldersynka}"
 readonly FS_BIN_DIR="${PREFIX}/bin"
 readonly FS_CORE_DIR="${FS_HOME}/core"
 readonly FS_TEMPLATE_DIR="${FS_CORE_DIR}/templates"

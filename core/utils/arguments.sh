@@ -132,11 +132,6 @@ fs_args_parse_create() {
                 fs_args_set delete false
                 shift
                 ;;
-            --interval)
-                fs_args_require_value "$1" "${2:-}" || return 1
-                fs_args_set interval "$2"
-                shift 2
-                ;;
             --watch)
                 fs_args_set watch true
                 shift

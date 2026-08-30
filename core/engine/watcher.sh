@@ -34,6 +34,12 @@ source "${FS_HOME}/core/utils/validation.sh"
 FS_WATCHER_PID=""
 FS_WATCHER_COMMAND=()
 
+fs_watcher_pid_file() {
+    local profile="$1"
+
+    printf '%s/%s.watcher.pid\n' "$FS_CACHE_DIR" "$profile"
+}
+
 ###############################################################################
 # Availability
 ###############################################################################
@@ -124,28 +130,33 @@ fs_watcher_ignore_event() {
 ###############################################################################
 
 fs_watcher_loop() {
-    local callback="$1"
+    local profile="$1"
+    local callback="$2"
+    local pid_file
 
-    trap 'exit 0' TERM INT
+    pid_file="$(fs_watcher_pid_file "$profile")"
+    printf '%s\n' "$BASHPID" > "$pid_file"
 
-    "${FS_WATCHER_COMMAND[@]}" |
-        while IFS='|' read -r directory file raw_event
-        do
-            local event
+    trap 'rm -f -- "$pid_file"; exit 0' TERM INT EXIT
 
-            event="$(fs_watcher_normalize_event "$raw_event")"
+    while IFS='|' read -r directory file raw_event
+    do
+        local event
 
-            [[ "$event" == "UNKNOWN" ]] && continue
+        event="$(fs_watcher_normalize_event "$raw_event")"
 
-            fs_watcher_ignore_event "$file" && continue
+        [[ "$event" == "UNKNOWN" ]] && continue
 
-            sleep "${FS_DEFAULT_DEBOUNCE}"
+        fs_watcher_ignore_event "$file" && continue
 
-            "$callback" \
-                "$directory" \
-                "$file" \
-                "$event"
-        done
+        sleep "${FS_DEFAULT_DEBOUNCE}"
+
+        "$callback" \
+            "$directory" \
+            "$file" \
+            "$event"
+
+    done < <("${FS_WATCHER_COMMAND[@]}")
 }
 
 ###############################################################################
@@ -162,8 +173,7 @@ fs_watcher_start() {
 
     if fs_watcher_running; then
         fs_log_warn \
-            "$profile" \
-            "Watcher is already running."
+                        "Watcher is already running."
 
         return 1
     fi
@@ -171,18 +181,26 @@ fs_watcher_start() {
     fs_watcher_build_command "$source"
 
     fs_log_info \
-        "$profile" \
-        "Starting filesystem watcher: ${source}"
+                "Starting filesystem watcher: ${source}"
 
-    (
-        fs_watcher_loop "$callback"
-    ) &
+    local pid_file
+    pid_file="$(fs_watcher_pid_file "$profile")"
+    rm -f -- "$pid_file"
 
-    FS_WATCHER_PID=$!
+    fs_watcher_loop "$profile" "$callback" &
+
+    for _ in {1..20}; do
+        if [[ -s "$pid_file" ]]; then
+            FS_WATCHER_PID="$(<"$pid_file")"
+            break
+        fi
+        sleep 0.05
+    done
+
+    [[ -n "$FS_WATCHER_PID" ]] || return 1
 
     fs_log_debug \
-        "$profile" \
-        "Watcher started with PID ${FS_WATCHER_PID}."
+                "Watcher started with PID ${FS_WATCHER_PID}."
 }
 
 ###############################################################################
@@ -198,14 +216,12 @@ fs_watcher_stop() {
 
     if kill -0 "$FS_WATCHER_PID" 2>/dev/null; then
         fs_log_debug \
-            "$profile" \
-            "Stopping watcher PID ${FS_WATCHER_PID}."
+                        "Stopping watcher PID ${FS_WATCHER_PID}."
 
-        kill "$FS_WATCHER_PID" 2>/dev/null || true
-
-        wait "$FS_WATCHER_PID" 2>/dev/null || true
+        kill -TERM "$FS_WATCHER_PID" 2>/dev/null || true
     fi
 
+    rm -f -- "$(fs_watcher_pid_file "$profile")"
     FS_WATCHER_PID=""
 }
 

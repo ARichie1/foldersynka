@@ -108,20 +108,17 @@ fs_rsync_execute() {
         "$destination"
 
     fs_log_debug \
-        "$profile" \
-        "Starting synchronization."
+                "Starting synchronization."
 
     if "${FS_RSYNC_COMMAND[@]}"; then
         fs_log_info \
-            "$profile" \
-            "Synchronization completed."
+                        "Synchronization completed."
 
         return 0
     fi
 
     fs_log_error \
-        "$profile" \
-        "Synchronization failed."
+                "Synchronization failed."
 
     return 1
 }
@@ -151,8 +148,7 @@ fs_rsync_dry_run() {
     )
 
     fs_log_debug \
-        "$profile" \
-        "Running synchronization dry run."
+                "Running synchronization dry run."
 
     "${command[@]}"
 }

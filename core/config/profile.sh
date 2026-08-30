@@ -52,6 +52,8 @@ fs_profile_create() {
 
     config="$(fs_profile_config_file "$profile")"
 
+    mkdir -p "$FS_CONFIG_DIR"
+
     if fs_profile_exists "$profile"; then
         printf 'Profile already exists: %s\n' "$profile"
         return 1

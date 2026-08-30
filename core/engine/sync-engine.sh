@@ -56,6 +56,7 @@ fs_sync_run() {
         fs_state_clear_error "$profile"
         fs_state_reset_retry "$profile"
         fs_state_mark_healthy "$profile"
+        fs_state_mark_running "$profile"
 
         return 0
     fi
@@ -84,25 +85,21 @@ fs_sync_event() {
     [[ -n "$profile" ]] || return 1
 
     fs_log_debug \
-        "$profile" \
-        "${event}: ${directory}${file}"
+                "${event}: ${directory}${file}"
 
     if ! fs_state_lock_acquire "$profile"; then
         fs_log_debug \
-            "$profile" \
-            "Synchronization already running."
+                        "Synchronization already running."
 
         return 0
     fi
 
     if fs_sync_run "$profile"; then
         fs_log_debug \
-            "$profile" \
-            "Event synchronization completed."
+                        "Event synchronization completed."
     else
         fs_log_error \
-            "$profile" \
-            "Event synchronization failed."
+                        "Event synchronization failed."
     fi
 
     fs_state_lock_release "$profile"
@@ -120,8 +117,7 @@ fs_sync_once() {
 
     if ! fs_state_lock_acquire "$profile"; then
         fs_log_warn \
-            "$profile" \
-            "Synchronization is already running."
+                        "Synchronization is already running."
 
         return 1
     fi
@@ -149,8 +145,7 @@ fs_sync_start() {
 
     if fs_state_is_running "$profile"; then
         fs_log_warn \
-            "$profile" \
-            "Synchronization engine is already running."
+                        "Synchronization engine is already running."
 
         return 1
     fi
@@ -163,15 +158,13 @@ fs_sync_start() {
     fs_state_clear_error "$profile"
 
     fs_log_info \
-        "$profile" \
-        "Starting synchronization engine."
+                "Starting synchronization engine."
 
     if ! fs_state_lock_acquire "$profile"; then
         fs_state_mark_stopped "$profile"
 
         fs_log_error \
-            "$profile" \
-            "Unable to acquire synchronization lock."
+                        "Unable to acquire synchronization lock."
 
         FS_SYNC_PROFILE=""
 
@@ -183,8 +176,7 @@ fs_sync_start() {
         fs_state_mark_stopped "$profile"
 
         fs_log_error \
-            "$profile" \
-            "Initial synchronization failed."
+                        "Initial synchronization failed."
 
         FS_SYNC_PROFILE=""
 
@@ -221,8 +213,7 @@ fs_sync_start() {
     fs_state_mark_running "$profile"
 
     fs_log_success \
-        "$profile" \
-        "Synchronization engine started."
+                "Synchronization engine started."
 
     return 0
 }
@@ -250,8 +241,7 @@ fs_sync_stop() {
     fs_state_mark_stopped "$profile"
 
     fs_log_info \
-        "$profile" \
-        "Synchronization engine stopped."
+                "Synchronization engine stopped."
 
     if [[ "$FS_SYNC_PROFILE" == "$profile" ]]; then
         FS_SYNC_PROFILE=""
@@ -333,6 +323,40 @@ fs_sync_info() {
     if [[ -n "$FS_STATE_LAST_ERROR" ]]; then
         printf "Last Error   : %s\n" "$FS_STATE_LAST_ERROR"
     fi
+}
+
+
+###############################################################################
+# Foreground Service Engine
+###############################################################################
+
+fs_sync_daemon() {
+    local profile="$1"
+
+    fs_validate_profile_exists "$profile" || return 1
+    fs_validate_profile_configuration "$profile" || return 1
+    fs_validate_system || return 1
+
+    trap 'fs_sync_stop "$profile"; exit 0' TERM INT
+
+    if ! fs_sync_start "$profile"; then
+        fs_state_service_write "$profile" "stopped"
+        return 1
+    fi
+
+    while fs_watcher_running; do
+        sleep 1
+    done
+
+    fs_state_set_error \
+        "$profile" \
+        "Filesystem watcher stopped unexpectedly."
+
+    fs_state_mark_unhealthy "$profile"
+    fs_state_service_write "$profile" "stopped"
+    fs_state_mark_stopped "$profile"
+
+    return 1
 }
 
 ###############################################################################

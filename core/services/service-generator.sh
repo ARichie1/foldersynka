@@ -5,17 +5,7 @@
 # File: core/services/service-generator.sh
 #
 # Description:
-#   Termux runit service management.
-#
-# Responsibilities:
-#   • Generate FolderSynka services
-#   • Remove FolderSynka services
-#   • Start services
-#   • Stop services
-#   • Restart services
-#   • Check service status
-#   • List generated services
-#
+#   Termux/runit service lifecycle management.
 ###############################################################################
 
 set -euo pipefail
@@ -29,6 +19,7 @@ source "${FS_HOME}/core/config/profile.sh"
 source "${FS_HOME}/core/config/state.sh"
 
 source "${FS_HOME}/core/utils/logger.sh"
+source "${FS_HOME}/core/utils/validation.sh"
 
 ###############################################################################
 # Service Paths
@@ -37,15 +28,13 @@ source "${FS_HOME}/core/utils/logger.sh"
 fs_service_directory() {
     local profile="$1"
 
-    printf '%s\n' \
-        "${PREFIX}/var/service/$(fs_service_name "$profile")"
+    fs_termux_service_dir "$profile"
 }
 
 fs_service_run_file() {
     local profile="$1"
 
-    printf '%s\n' \
-        "$(fs_service_directory "$profile")/run"
+    printf '%s/run\n' "$(fs_service_directory "$profile")"
 }
 
 ###############################################################################
@@ -65,6 +54,9 @@ fs_service_exists() {
 fs_service_create() {
     local profile="$1"
 
+    fs_validate_profile_name "$profile" || return 1
+    fs_validate_profile_exists "$profile" || return 1
+
     local service_dir
     local run_file
 
@@ -72,9 +64,6 @@ fs_service_create() {
     run_file="$(fs_service_run_file "$profile")"
 
     if fs_service_exists "$profile"; then
-        fs_log_debug \
-            "Service already exists: $(fs_service_name "$profile")"
-
         return 0
     fi
 
@@ -82,11 +71,17 @@ fs_service_create() {
 
     cat > "$run_file" <<EOF
 #!/data/data/com.termux/files/usr/bin/bash
+set -euo pipefail
 
-exec foldersynka engine run "$profile"
+export FS_HOME="${FS_HOME}"
+
+source "\${FS_HOME}/core/config/config.sh"
+source "\${FS_HOME}/core/engine/sync-engine.sh"
+
+fs_sync_daemon "$profile"
 EOF
 
-    chmod +x "$run_file"
+    chmod 755 "$run_file"
 
     fs_log_info \
         "Created service: $(fs_service_name "$profile")"
@@ -99,8 +94,9 @@ EOF
 fs_service_remove() {
     local profile="$1"
 
-    local service_dir
+    fs_validate_profile_name "$profile" || return 1
 
+    local service_dir
     service_dir="$(fs_service_directory "$profile")"
 
     if ! fs_service_exists "$profile"; then
@@ -108,7 +104,6 @@ fs_service_remove() {
     fi
 
     fs_service_stop "$profile" || true
-
     rm -rf -- "$service_dir"
 
     fs_log_info \
@@ -122,9 +117,18 @@ fs_service_remove() {
 fs_service_start() {
     local profile="$1"
 
+    fs_validate_environment || return 1
+    fs_validate_termux_services || return 1
+    fs_validate_profile_name "$profile" || return 1
+    fs_validate_profile_exists "$profile" || return 1
+
     fs_service_create "$profile"
 
-    sv up "$(fs_service_name "$profile")"
+    if ! sv up "$(fs_service_name "$profile")"; then
+        fs_log_error \
+            "Unable to start service: $(fs_service_name "$profile")"
+        return 1
+    fi
 
     fs_state_service_write \
         "$profile" \
@@ -141,11 +145,17 @@ fs_service_start() {
 fs_service_stop() {
     local profile="$1"
 
+    fs_validate_profile_name "$profile" || return 1
+
     if ! fs_service_exists "$profile"; then
         return 0
     fi
 
-    sv down "$(fs_service_name "$profile")" || true
+    if ! sv down "$(fs_service_name "$profile")"; then
+        fs_log_error \
+            "Unable to stop service: $(fs_service_name "$profile")"
+        return 1
+    fi
 
     fs_state_service_write \
         "$profile" \
@@ -162,10 +172,7 @@ fs_service_stop() {
 fs_service_restart() {
     local profile="$1"
 
-    fs_service_stop "$profile"
-
-    sleep 1
-
+    fs_service_stop "$profile" || return 1
     fs_service_start "$profile"
 }
 
@@ -175,6 +182,8 @@ fs_service_restart() {
 
 fs_service_status() {
     local profile="$1"
+
+    fs_validate_profile_name "$profile" || return 1
 
     if ! fs_service_exists "$profile"; then
         printf '%s\n' "not-created"
@@ -191,10 +200,7 @@ fs_service_status() {
 fs_service_running() {
     local profile="$1"
 
-    if ! fs_service_exists "$profile"; then
-        return 1
-    fi
-
+    fs_service_exists "$profile" || return 1
     sv status "$(fs_service_name "$profile")" >/dev/null 2>&1
 }
 
@@ -203,14 +209,13 @@ fs_service_running() {
 ###############################################################################
 
 fs_service_list() {
-    local directory="${PREFIX}/var/service"
+    local directory="$FS_TERMUX_SERVICE_DIR"
     local service
 
     [[ -d "$directory" ]] || return 0
 
-    for service in "$directory"/foldersynka-*; do
+    for service in "$directory"/"${FS_SERVICE_PREFIX}"-*; do
         [[ -e "$service" ]] || continue
-
         basename "$service"
     done
 }

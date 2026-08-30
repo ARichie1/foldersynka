@@ -50,11 +50,6 @@ fs_validation_pipeline_start() {
         fs_validate_termux_services \
         || return 1
 
-    fs_pipeline_step \
-        fs_validate_service_exists \
-        "$profile" \
-        || return 1
-
     if ! fs_profile_load "$profile"; then
         fs_validation_fail \
             "$FS_ERR_PROFILE_CORRUPTED" \

@@ -16,6 +16,12 @@
 # These values may be overridden by individual profiles.
 ###############################################################################
 
+if [[ "${FS_DEFAULTS_LOADED:-false}" == "true" ]]; then
+    return 0
+fi
+
+FS_DEFAULTS_LOADED=true
+
 set -euo pipefail
 
 ###############################################################################
@@ -36,6 +42,7 @@ readonly FS_DEFAULT_FOLLOW_SYMLINKS=false
 
 readonly FS_DEFAULT_SYNC_INTERVAL=3
 readonly FS_DEFAULT_DEBOUNCE_MS=500
+readonly FS_DEFAULT_DEBOUNCE=0.5
 
 readonly FS_DEFAULT_RSYNC_FLAGS="-a"
 

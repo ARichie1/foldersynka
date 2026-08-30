@@ -77,7 +77,7 @@ EXAMPLES
 
     foldersynka restart my-app
 
-    foldersynka ignore init
+    foldersynka ignore my-app init
 
 MORE HELP
 
@@ -126,9 +126,6 @@ OPTIONS
 
     --no-delete
         Disable deletion of removed files.
-
-    --interval
-        Set watcher debounce interval.
 
     --watch
         Start the profile after creation.
@@ -342,11 +339,11 @@ COMMANDS
 
 USAGE
 
-    foldersynka ignore init
+    foldersynka ignore my-app init
 
 EXAMPLE
 
-    foldersynka ignore init
+    foldersynka ignore my-app init
 
 EOF
 

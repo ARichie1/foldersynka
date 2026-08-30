@@ -73,7 +73,6 @@ The profile can then be controlled through the FolderSynka CLI:
 - Optional rsync compression
 - Optional checksum-based comparison
 - Optional deletion control
-- Configurable watcher debounce interval
 - Termux service integration
 - Start, stop, restart, and status management
 - Installation diagnostics with `doctor`
@@ -330,7 +329,6 @@ Optional synchronization settings include:
     --compress
     --checksum
     --no-delete
-    --interval
     --watch
 
 Example:
@@ -403,6 +401,30 @@ Display the installed version:
 
     foldersynka version
     
+
+## Testing
+
+The repository includes an integration test suite for the main application
+lifecycle.
+
+Run:
+
+    bash tests/test.sh
+
+The test suite verifies:
+
+- CLI version and help
+- Profile creation and listing
+- Profile configuration options
+- Ignore-file creation and management
+- Environment diagnostics
+- Initial synchronization
+- Event-driven synchronization
+- Service start and stop
+- Profile removal
+
+The test suite uses temporary directories and a test service wrapper. It does
+not modify the user's FolderSynka runtime.
 
 ## Profiles
 
@@ -734,9 +756,6 @@ Available options include:
 
     --no-delete
         Prevent synchronization from deleting files removed from the source.
-
-    --interval
-        Configure the watcher debounce interval.
 
     --watch
         Start the profile after creation.
@@ -1138,7 +1157,7 @@ The `core/templates/` directory contains reusable application templates.
 
 The default `.foldersynkaignore` template is stored here:
 
-    core/templates/foldersynkaignore
+    core/templates/.foldersynkaignore
 
 ### Utilities
 
@@ -1387,3 +1406,12 @@ FolderSynka is developed with a focus on:
 Please avoid unrelated changes in the same commit or pull request.
 
 For larger changes, open an issue or discussion first so the proposed architecture can be reviewed before implementation.
+
+## Release
+
+Current release: **v1.0.0**
+
+FolderSynka v1.0.0 is the first stable release boundary of the current
+application feature set. The release focuses on reliable profile management,
+one-way synchronization, filesystem watching, ignore-file management,
+Termux service integration, diagnostics, and predictable CLI behavior.

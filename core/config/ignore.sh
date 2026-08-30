@@ -185,6 +185,13 @@ fs_ignore_contains() {
 # List Patterns
 ###############################################################################
 
+fs_ignore_read() {
+    local profile="$1"
+
+    fs_ignore_validate "$profile" || return 1
+    fs_ignore_print "$profile"
+}
+
 fs_ignore_list() {
     local profile="$1"
     local file
@@ -228,6 +235,10 @@ fs_ignore_add() {
 
     if fs_ignore_contains "$profile" "$pattern"; then
         return 0
+    fi
+
+    if [[ -s "$file" ]] && [[ -n "$(tail -c 1 "$file")" ]]; then
+        printf '\n' >> "$file"
     fi
 
     printf '%s\n' "$pattern" >> "$file"
@@ -282,6 +293,8 @@ fs_ignore_is_ignored() {
     local path="$2"
     local file
     local pattern
+    local match_pattern
+    local match_pattern
 
     fs_ignore_validate "$profile" || return 1
 
@@ -293,24 +306,22 @@ fs_ignore_is_ignored() {
         [[ -n "$pattern" ]] || continue
         [[ "$pattern" == \#* ]] && continue
 
-        if [[ "$path" == $pattern ]]; then
+        match_pattern="${pattern%/}"
+
+        if [[ "$path" == $pattern || "$path" == $match_pattern ]]; then
             return 0
         fi
 
-        if [[ "$path" == */$pattern ]]; then
+        if [[ "$path" == */$match_pattern || "$path" == */$match_pattern/* ]]; then
             return 0
         fi
 
-        if [[ "$path" == $pattern/* ]]; then
-            return 0
-        fi
-
-        if [[ "$path" == */$pattern/* ]]; then
+        if [[ "$path" == $match_pattern/* ]]; then
             return 0
         fi
 
         if [[ "$pattern" == *"*"* || "$pattern" == *"?"* ]]; then
-            if [[ "$path" == $pattern ]]; then
+            if [[ "$path" == $pattern || "$path" == $match_pattern ]]; then
                 return 0
             fi
         fi
