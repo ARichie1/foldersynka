@@ -82,7 +82,14 @@ case "$COMMAND" in
         exec bash "${COMMAND_DIR}/restart.sh" "$@"
         ;;
 
+    capabilities|inspect|plan|sync|wait|conflicts|resolve)
+        exec bash "${COMMAND_DIR}/bridge.sh" "$COMMAND" "$@"
+        ;;
+
     status)
+        if [[ " $* " == *" --json "* ]]; then
+            exec bash "${COMMAND_DIR}/bridge.sh" status "$@"
+        fi
         exec bash "${COMMAND_DIR}/status.sh" "$@"
         ;;
 

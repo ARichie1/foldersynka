@@ -46,6 +46,21 @@ readonly FS_PROTECTED_PATHS=(
     "/sys"
     "/dev"
     "/data"
+    "/etc"
+    "/usr"
+    "/bin"
+    "/sbin"
+    "/boot"
+    "/tmp"
+    "/var"
+    "/home"
+    "/root"
+    "/mnt"
+    "/media"
+    "/sdcard"
+    "/storage"
+    "/storage/emulated"
+    "/storage/emulated/0"
     "$HOME"
     "$PREFIX"
 )
@@ -58,11 +73,11 @@ fs_absolute_path() {
     local path="$1"
 
     if command -v realpath >/dev/null 2>&1; then
-        realpath -m "$path"
-        return 0
+        realpath -m -- "$path"
+        return $?
     fi
 
-    readlink -f "$path"
+    readlink -f -- "$path"
 }
 
 fs_expand_path() {
@@ -119,7 +134,11 @@ fs_is_protected_path() {
     path="$(fs_normalize_path "$1")"
 
     for protected in "${FS_PROTECTED_PATHS[@]}"; do
-        protected="$(fs_normalize_path "$protected")"
+        # System roots are already absolute; only environment roots need alias
+        # resolution. Avoid spawning realpath for every protected root.
+        if [[ "$protected" == "$HOME" || "$protected" == "$PREFIX" || -L "$protected" ]]; then
+            protected="$(fs_normalize_path "$protected")" || return 0
+        fi
 
         if [[ "$path" == "$protected" ]]; then
             return 0
@@ -136,6 +155,8 @@ fs_require_safe_path() {
         fs_print_error "Empty filesystem path."
         return 1
     fi
+
+    fs_normalize_path "$path" >/dev/null || return 1
 
     if fs_is_protected_path "$path"; then
         fs_print_error "Refusing unsafe filesystem operation: $path"
@@ -578,3 +599,76 @@ fs_self_test() {
 ###############################################################################
 # End of File
 ###############################################################################
+# Shared safe shell-data codec. Only assignments to an explicit allowlist are
+# accepted. No source/eval: legacy simple assignments remain readable.
+fs_data_assignment() {
+    local value="$2"
+    value=${value//\\/\\\\}
+    value=${value//\"/\\\"}
+    value=${value//\$/\\\$}
+    value=${value//\`/\\\`}
+    printf '%s="%s"\n' "$1" "$value"
+}
+
+fs_data_read() {
+    local file="$1" allowed="$2" line key raw value char escaped i
+    local -A seen=()
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ -z "$line" || "$line" == \#* ]] && continue
+        [[ "$line" == *=* ]] || return 1
+        key=${line%%=*}; raw=${line#*=}
+        [[ " $allowed " == *" $key "* && -z "${seen[$key]:-}" ]] || return 1
+        seen[$key]=1
+        value=
+        if [[ "$raw" == \"* ]]; then
+            # Quoted values may contain literal newlines, escaped shell syntax.
+            while :; do
+                escaped=false
+                value=
+                for ((i=1; i<${#raw}; i++)); do
+                    char=${raw:i:1}
+                    if $escaped; then
+                        case "$char" in
+                            '$'|'`'|'"'|'\') value+="$char" ;;
+                            *) value+="\\$char" ;;
+                        esac
+                        escaped=false
+                    elif [[ "$char" == \\ ]]; then
+                        escaped=true
+                    elif [[ "$char" == '"' ]]; then
+                        [[ $i == $((${#raw}-1)) ]] || return 1
+                        break
+                    elif [[ "$char" == '$' || "$char" == '`' ]]; then
+                        return 1
+                    else
+                        value+="$char"
+                    fi
+                done
+                [[ "$char" == '"' && $i -lt ${#raw} ]] && break
+                IFS= read -r line || return 1
+                raw+=$'\n'"$line"
+            done
+        else
+            [[ "$raw" =~ ^[a-zA-Z0-9_./:-]+$ ]] || return 1
+            value=$raw
+        fi
+        printf -v "$key" '%s' "$value"
+    done < "$file"
+}
+
+# Resolve aliases and reject overlapping endpoints in either direction.
+fs_validate_path_pair() {
+    local source destination
+    [[ -n "$1" && -n "$2" ]] || return 1
+    source=$(fs_normalize_path "$1") || return 1
+    destination=$(fs_normalize_path "$2") || return 1
+    local endpoint
+    for endpoint in "$source" "$destination"; do
+        case "$endpoint" in
+            /proc/*|/sys/*|/dev/*|/etc/*|/system/*|/vendor/*|/product/*|/boot/*) return 1 ;;
+        esac
+    done
+    fs_require_safe_path "$source" || return 1
+    fs_require_safe_path "$destination" || return 1
+    [[ "$source" != "$destination" && "$source" != "$destination/"* && "$destination" != "$source/"* ]]
+}

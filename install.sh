@@ -24,8 +24,8 @@ set -euo pipefail
 
 readonly FS_SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-readonly FS_INSTALL_HOME="${PREFIX}/share/foldersynka"
-readonly FS_INSTALL_BIN="${PREFIX}/bin/foldersynka"
+readonly FS_INSTALL_HOME="${PREFIX:-}/share/foldersynka"
+readonly FS_INSTALL_BIN="${PREFIX:-}/bin/foldersynka"
 
 readonly FS_SOURCE_BIN="${FS_SOURCE_DIR}/bin"
 readonly FS_SOURCE_CORE="${FS_SOURCE_DIR}/core"
@@ -61,6 +61,8 @@ fs_install_validate_environment() {
 
     [[ -n "${HOME:-}" ]] || \
         fs_install_error "HOME is not configured."
+
+    command -v python3 >/dev/null || fs_install_error "Python 3 is required. Run: pkg install python"
 
     if [[ "$PREFIX" != *"/com.termux"* ]]; then
 

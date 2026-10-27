@@ -46,3 +46,7 @@ node_modules/
 
 # Git
 *.orig
+
+# Python test/compiler caches
+__pycache__/
+*.py[cod]

@@ -69,11 +69,13 @@ fs_service_create() {
 
     mkdir -p "$service_dir"
 
+    local quoted_home
+    printf -v quoted_home '%q' "$FS_HOME"
     cat > "$run_file" <<EOF
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
 
-export FS_HOME="${FS_HOME}"
+export FS_HOME=${quoted_home}
 
 source "\${FS_HOME}/core/config/config.sh"
 source "\${FS_HOME}/core/engine/sync-engine.sh"
@@ -201,7 +203,13 @@ fs_service_running() {
     local profile="$1"
 
     fs_service_exists "$profile" || return 1
-    sv status "$(fs_service_name "$profile")" >/dev/null 2>&1
+    local result
+    result=$(sv status "$(fs_service_name "$profile")" 2>/dev/null) || return 1
+    # Real runit status returns success for a supervised service that is down.
+    [[ "$result" == run:* ]] && return 0
+    [[ -z "$result" ]] || return 1
+    # The portable test supervisor reports only an exit code.
+    return 0
 }
 
 ###############################################################################

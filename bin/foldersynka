@@ -20,8 +20,8 @@ set -euo pipefail
 # Project Paths
 ###############################################################################
 
-export FS_HOME="${PREFIX}/share/foldersynka"
-export FS_RUNTIME="${HOME}/.foldersynka"
+export FS_HOME="${PREFIX:-}/share/foldersynka"
+export FS_RUNTIME="${HOME:-}/.foldersynka"
 
 readonly FS_ROUTER="${FS_HOME}/core/cli/router.sh"
 

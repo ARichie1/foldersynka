@@ -157,7 +157,7 @@ printf '\nFolderSynka integration tests\n\n'
 
 assert_contains \
     "version command" \
-    "FolderSynka v1.0.0" \
+    "FolderSynka v$(cat "${FS_HOME}/VERSION")" \
     bash "$CLI" --version
 
 assert_success \

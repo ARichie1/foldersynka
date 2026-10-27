@@ -53,6 +53,12 @@ Options
     --dest, -d
         Destination directory.
 
+    --mode copy|mirror|bidirectional
+        Reconciliation mode (default: copy).
+
+    --json
+        Emit the created profile as JSON.
+
     --compress
         Enable rsync compression.
 
@@ -78,7 +84,7 @@ EOF
 
 fs_command_create() {
 
-    fs_args_parse_create "$@"
+    fs_args_parse_create "$@" || return 1
 
     if fs_args_has help; then
         fs_create_help
@@ -92,6 +98,12 @@ fs_command_create() {
     profile="$(fs_args_get profile)"
     source="$(fs_args_get src)"
     destination="$(fs_args_get dest)"
+    FS_CREATE_MODE="$(fs_args_get mode)"
+    FS_CREATE_MODE="${FS_CREATE_MODE:-copy}"
+    if fs_args_has delete && [[ "$FS_CREATE_MODE" != copy ]]; then
+        fs_log_error "--no-delete is only compatible with --mode copy."
+        return 1
+    fi
 
     ###########################################################################
     # Required Arguments
@@ -111,7 +123,7 @@ fs_command_create() {
     # Runtime
     ###########################################################################
 
-    fs_runtime_ensure
+    fs_runtime_ensure || return 1
 
     ###########################################################################
     # Validation Pipeline
@@ -121,13 +133,13 @@ fs_command_create() {
         create \
         "$profile" \
         "$source" \
-        "$destination"
+        "$destination" || return 1
 
     ###########################################################################
     # Destination
     ###########################################################################
 
-    mkdir -p "$destination"
+    mkdir -p "$destination" || return 1
 
     ###########################################################################
     # Profile
@@ -136,7 +148,12 @@ fs_command_create() {
     fs_profile_create \
         "$profile" \
         "$source" \
-        "$destination"
+        "$destination" || return 1
+
+    fs_profile_set "$profile" MODE "${FS_CREATE_MODE:-copy}" || return 1
+    if [[ "$FS_CREATE_MODE" == mirror || "$FS_CREATE_MODE" == bidirectional ]]; then
+        fs_profile_set "$profile" DELETE true || return 1
+    fi
 
     if fs_args_has compress; then
         fs_profile_set "$profile" COMPRESS "true"
@@ -154,7 +171,7 @@ fs_command_create() {
     # Ignore File
     ###########################################################################
 
-    fs_ignore_init "$profile"
+    fs_ignore_init "$profile" || return 1
 
     ###########################################################################
     # Success
@@ -189,4 +206,13 @@ fs_command_create() {
 # Execute
 ###############################################################################
 
-fs_command_create "$@"
+if [[ " $* " == *" --json "* ]]; then
+    if fs_command_create "$@" >&2; then
+        exec bash "${FS_HOME}/core/cli/commands/bridge.sh" inspect "${1:-}" --json
+    else
+        printf '%s\n' '{"schemaVersion":1,"operation":"create","ok":false,"error":{"code":"CREATE_FAILED"}}'
+        exit 2
+    fi
+else
+    fs_command_create "$@"
+fi

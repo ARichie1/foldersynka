@@ -55,19 +55,8 @@ fs_validation_pipeline_stop() {
         "$profile" \
         || return 1
 
-    local status
-    status="$(fs_state_status "$profile")"
-
-    case "$status" in
-        starting|syncing|running)
-            ;;
-        *)
-            fs_validation_fail \
-                "$FS_ERR_NOT_RUNNING" \
-                "profile"
-            return 1
-            ;;
-    esac
+    # Stopping is idempotent and must work even when stale/corrupt sync state
+    # no longer reflects the supervisor's process state.
 
     fs_pipeline_success
 }

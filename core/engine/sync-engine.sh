@@ -47,10 +47,15 @@ fs_sync_run() {
 
     fs_state_mark_syncing "$profile"
 
-    if fs_rsync_execute \
-        "$profile" \
-        "$FS_PROFILE_SOURCE" \
-        "$FS_PROFILE_DESTINATION"
+    local reconcile_rc=0
+    bash "${FS_HOME}/core/cli/commands/bridge.sh" sync "$profile" --once --json >&2 || reconcile_rc=$?
+    if [[ "$reconcile_rc" == 4 ]]; then
+        fs_state_set_error "$profile" "Unresolved reconciliation conflicts."
+        fs_state_mark_warning "$profile"
+        fs_state_mark_running "$profile"
+        return 0
+    fi
+    if [[ "$reconcile_rc" == 0 ]]
     then
         fs_state_touch_sync "$profile"
         fs_state_clear_error "$profile"
@@ -331,34 +336,25 @@ fs_sync_info() {
 ###############################################################################
 
 fs_sync_daemon() {
-    local profile="$1"
-
+    local profile="$1" sleeper=""
     fs_validate_profile_exists "$profile" || return 1
     fs_validate_profile_configuration "$profile" || return 1
-    fs_validate_system || return 1
-
-    trap 'fs_sync_stop "$profile"; exit 0' TERM INT
-
-    if ! fs_sync_start "$profile"; then
-        fs_state_service_write "$profile" "stopped"
-        return 1
-    fi
-
-    while fs_watcher_running; do
-        sleep 1
+    command -v python3 >/dev/null || return 1
+    FS_SYNC_PROFILE="$profile"
+    # This process, rather than an untracked watcher child, owns the service.
+    # Periodic reconciliation covers both endpoints and missed Android events.
+    fs_state_mark_starting "$profile"
+    fs_state_pid_write "$profile" "$BASHPID"
+    trap '[[ -z "$sleeper" ]] || { kill "$sleeper" 2>/dev/null || true; wait "$sleeper" 2>/dev/null || true; }; fs_state_lock_release "$profile"; fs_state_pid_remove "$profile"; fs_state_service_write "$profile" stopped; fs_state_mark_stopped "$profile"; exit 0' TERM INT
+    trap 'fs_state_lock_release "$profile"' EXIT
+    while true; do
+        if ! fs_sync_once "$profile"; then
+            # Keep the supervisor alive to retry recoverable unavailable storage.
+            fs_state_mark_warning "$profile" || true
+        fi
+        sleep "${FS_DEFAULT_SYNC_INTERVAL:-3}" &
+        sleeper=$!
+        wait "$sleeper" || true
+        sleeper=""
     done
-
-    fs_state_set_error \
-        "$profile" \
-        "Filesystem watcher stopped unexpectedly."
-
-    fs_state_mark_unhealthy "$profile"
-    fs_state_service_write "$profile" "stopped"
-    fs_state_mark_stopped "$profile"
-
-    return 1
 }
-
-###############################################################################
-# End of File
-###############################################################################

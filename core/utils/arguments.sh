@@ -120,6 +120,16 @@ fs_args_parse_create() {
                 fs_args_set dest "$2"
                 shift 2
                 ;;
+            --mode)
+                fs_args_require_value "$1" "${2:-}" || return 1
+                case "$2" in copy|mirror|bidirectional) ;; *) printf 'Invalid mode: %s\n' "$2" >&2; return 1 ;; esac
+                fs_args_set mode "$2"
+                shift 2
+                ;;
+            --json)
+                fs_args_set json true
+                shift
+                ;;
             --compress|-c)
                 fs_args_set compress true
                 shift

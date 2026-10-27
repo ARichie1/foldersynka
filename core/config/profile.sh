@@ -27,6 +27,7 @@ set -euo pipefail
 source "${FS_HOME}/core/lib/constants.sh"
 source "${FS_HOME}/core/config/paths.sh"
 source "${FS_HOME}/core/config/defaults.sh"
+source "${FS_HOME}/core/utils/filesystem.sh"
 
 ###############################################################################
 # Profile Existence
@@ -47,6 +48,11 @@ fs_profile_create() {
     local source="$2"
     local destination="$3"
 
+    fs_profile_validate_name "$profile" || return 1
+    fs_validate_path_pair "$source" "$destination" || return 1
+    source=$(fs_normalize_path "$source") || return 1
+    destination=$(fs_normalize_path "$destination") || return 1
+
     local config
     local timestamp
 
@@ -61,43 +67,30 @@ fs_profile_create() {
 
     timestamp="$(date -u +"${FS_LOG_TIMESTAMP_FORMAT}")"
 
-    cat > "$config" <<EOF
-###############################################################################
-# FolderSynka Profile Configuration
-###############################################################################
+    local temporary
+    temporary=$(mktemp "${config}.XXXXXX") || return 1
+    {
+        fs_data_assignment CONFIG_VERSION "$FS_DEFAULT_CONFIG_VERSION"
+        fs_data_assignment CREATED_AT "$timestamp"
+        fs_data_assignment UPDATED_AT "$timestamp"
+        fs_data_assignment PROFILE_NAME "$profile"
+        fs_data_assignment SOURCE "$source"
+        fs_data_assignment DESTINATION "$destination"
+        fs_data_assignment MODE "copy"
+        fs_data_assignment WATCH "$FS_DEFAULT_WATCH"
+        fs_data_assignment DELETE "$FS_DEFAULT_DELETE"
+        fs_data_assignment FOLLOW_SYMLINKS "$FS_DEFAULT_FOLLOW_SYMLINKS"
+        fs_data_assignment CHECKSUM "$FS_DEFAULT_CHECKSUM"
+        fs_data_assignment COMPRESS "$FS_DEFAULT_COMPRESS"
+        fs_data_assignment IGNORE_FILE "$FS_IGNORE_FILE"
+        fs_data_assignment AUTO_START "$FS_DEFAULT_AUTO_START"
+        fs_data_assignment SERVICE_NAME "$(fs_service_name "$profile")"
+        fs_data_assignment LOG_LEVEL "$FS_DEFAULT_LOG_LEVEL"
+        fs_data_assignment LOG_FILE "$(fs_profile_log_file "$profile")"
+    } > "$temporary" || { rm -f -- "$temporary"; return 1; }
+    ln -- "$temporary" "$config" || { rm -f -- "$temporary"; return 1; }
+    rm -f -- "$temporary"
 
-CONFIG_VERSION="${FS_DEFAULT_CONFIG_VERSION}"
-
-CREATED_AT="${timestamp}"
-
-UPDATED_AT="${timestamp}"
-
-PROFILE_NAME="${profile}"
-
-SOURCE="${source}"
-
-DESTINATION="${destination}"
-
-WATCH=${FS_DEFAULT_WATCH}
-
-DELETE=${FS_DEFAULT_DELETE}
-
-FOLLOW_SYMLINKS=${FS_DEFAULT_FOLLOW_SYMLINKS}
-
-CHECKSUM=${FS_DEFAULT_CHECKSUM}
-
-COMPRESS=${FS_DEFAULT_COMPRESS}
-
-IGNORE_FILE="${FS_IGNORE_FILE}"
-
-AUTO_START=${FS_DEFAULT_AUTO_START}
-
-SERVICE_NAME="$(fs_service_name "$profile")"
-
-LOG_LEVEL="${FS_DEFAULT_LOG_LEVEL}"
-
-LOG_FILE="$(fs_profile_log_file "$profile")"
-EOF
 }
 
 ###############################################################################
@@ -123,6 +116,7 @@ fs_profile_load() {
     local profile="$1"
     local config
 
+    fs_profile_validate_name "$profile" || return 1
     config="$(fs_profile_config_file "$profile")"
 
     if [[ ! -f "$config" ]]; then
@@ -130,8 +124,24 @@ fs_profile_load() {
         return 1
     fi
 
-    # shellcheck disable=SC1090
-    source "$config"
+    local CONFIG_VERSION= CREATED_AT= UPDATED_AT= PROFILE_NAME= SOURCE= DESTINATION=
+    local WATCH= DELETE= FOLLOW_SYMLINKS= CHECKSUM= COMPRESS= IGNORE_FILE=
+    local AUTO_START= SERVICE_NAME= LOG_LEVEL= LOG_FILE= MODE=
+    fs_data_read "$config" "CONFIG_VERSION CREATED_AT UPDATED_AT PROFILE_NAME SOURCE DESTINATION MODE WATCH DELETE FOLLOW_SYMLINKS CHECKSUM COMPRESS IGNORE_FILE AUTO_START SERVICE_NAME LOG_LEVEL LOG_FILE" || return 1
+    [[ "$CONFIG_VERSION" == "$FS_DEFAULT_CONFIG_VERSION" && "$PROFILE_NAME" == "$profile" ]] || return 1
+    local flag
+    for flag in WATCH DELETE FOLLOW_SYMLINKS CHECKSUM COMPRESS AUTO_START; do
+        [[ "${!flag}" == true || "${!flag}" == false ]] || return 1
+    done
+    [[ -n "$SERVICE_NAME" && -n "$LOG_FILE" && -n "$IGNORE_FILE" ]] || return 1
+    [[ "$LOG_LEVEL" =~ ^(debug|info|warn|warning|error)$ ]] || return 1
+    if [[ -z "$MODE" ]]; then
+        MODE=copy
+        [[ "$DELETE" != true ]] || MODE=mirror
+    fi
+    [[ "$MODE" =~ ^(copy|mirror|bidirectional)$ ]] || return 1
+    fs_validate_path_pair "$SOURCE" "$DESTINATION" || return 1
+    export FS_PROFILE_MODE="$MODE"
 
     export FS_PROFILE_NAME="$PROFILE_NAME"
     export FS_PROFILE_SOURCE="$SOURCE"
@@ -200,9 +210,12 @@ fs_profile_get() {
     local profile="$1"
     local key="$2"
 
-    fs_profile_load "$profile"
+    fs_profile_load "$profile" || return 1
 
     case "$key" in
+        MODE)
+            printf '%s\n' "$FS_PROFILE_MODE"
+            ;;
         PROFILE_NAME)
             printf '%s\n' "$FS_PROFILE_NAME"
             ;;
@@ -266,7 +279,7 @@ fs_profile_set() {
     [[ -f "$config" ]] || return 1
 
     case "$key" in
-        PROFILE_NAME|SOURCE|DESTINATION|WATCH|DELETE|FOLLOW_SYMLINKS|CHECKSUM|COMPRESS|IGNORE_FILE|AUTO_START|SERVICE_NAME|LOG_LEVEL|LOG_FILE)
+        MODE|PROFILE_NAME|SOURCE|DESTINATION|WATCH|DELETE|FOLLOW_SYMLINKS|CHECKSUM|COMPRESS|IGNORE_FILE|AUTO_START|SERVICE_NAME|LOG_LEVEL|LOG_FILE)
             ;;
         *)
             printf 'Unknown or immutable profile property: %s\n' "$key"
@@ -274,15 +287,39 @@ fs_profile_set() {
             ;;
     esac
 
+    case "$key" in
+        MODE) [[ "$value" =~ ^(copy|mirror|bidirectional)$ ]] || return 1 ;;
+        WATCH|DELETE|FOLLOW_SYMLINKS|CHECKSUM|COMPRESS|AUTO_START)
+            [[ "$value" == true || "$value" == false ]] || return 1 ;;
+        PROFILE_NAME) [[ "$value" == "$profile" ]] || return 1 ;;
+        LOG_LEVEL) [[ "$value" =~ ^(debug|info|warn|warning|error)$ ]] || return 1 ;;
+        IGNORE_FILE|SERVICE_NAME|LOG_FILE) [[ -n "$value" ]] || return 1 ;;
+    esac
+    fs_profile_load "$profile" || return 1
+    if [[ "$key" == SOURCE ]]; then
+        fs_validate_path_pair "$value" "$FS_PROFILE_DESTINATION" || return 1
+    elif [[ "$key" == DESTINATION ]]; then
+        fs_validate_path_pair "$FS_PROFILE_SOURCE" "$value" || return 1
+    fi
     timestamp="$(date -u +"${FS_LOG_TIMESTAMP_FORMAT}")"
+    local temporary line
+    temporary=$(mktemp "${config}.XXXXXX") || return 1
+    # Validated input uses one assignment per logical value. Re-serialize all
+    # fields so multiline values never become line-oriented replacement syntax.
+    (
+        local CONFIG_VERSION= CREATED_AT= UPDATED_AT= PROFILE_NAME= SOURCE= DESTINATION=
+        local MODE= WATCH= DELETE= FOLLOW_SYMLINKS= CHECKSUM= COMPRESS= IGNORE_FILE=
+        local AUTO_START= SERVICE_NAME= LOG_LEVEL= LOG_FILE=
+        fs_data_read "$config" "CONFIG_VERSION CREATED_AT UPDATED_AT PROFILE_NAME SOURCE DESTINATION MODE WATCH DELETE FOLLOW_SYMLINKS CHECKSUM COMPRESS IGNORE_FILE AUTO_START SERVICE_NAME LOG_LEVEL LOG_FILE" || exit 1
+        printf -v "$key" '%s' "$value"
+        UPDATED_AT=$timestamp
+        for line in CONFIG_VERSION CREATED_AT UPDATED_AT PROFILE_NAME SOURCE DESTINATION WATCH DELETE FOLLOW_SYMLINKS CHECKSUM COMPRESS IGNORE_FILE AUTO_START SERVICE_NAME LOG_LEVEL LOG_FILE; do
+            fs_data_assignment "$line" "${!line}"
+        done
+        [[ -z "$MODE" ]] || fs_data_assignment MODE "$MODE"
+    ) > "$temporary" || { rm -f -- "$temporary"; return 1; }
+    mv -f -- "$temporary" "$config"
 
-    sed -i \
-        "s|^${key}=.*|${key}=\"${value}\"|" \
-        "$config"
-
-    sed -i \
-        "s|^UPDATED_AT=.*|UPDATED_AT=\"${timestamp}\"|" \
-        "$config"
 }
 
 ###############################################################################
@@ -305,8 +342,7 @@ fs_profile_validate_paths() {
     local source="$1"
     local destination="$2"
 
-    [[ -n "$source" ]]
-    [[ -n "$destination" ]]
+    fs_validate_path_pair "$source" "$destination"
 }
 
 ###############################################################################

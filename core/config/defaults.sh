@@ -35,7 +35,7 @@ readonly FS_DEFAULT_CONFIG_VERSION="1.0.0"
 ###############################################################################
 
 readonly FS_DEFAULT_WATCH=true
-readonly FS_DEFAULT_DELETE=true
+readonly FS_DEFAULT_DELETE=false
 readonly FS_DEFAULT_COMPRESS=true
 readonly FS_DEFAULT_CHECKSUM=false
 readonly FS_DEFAULT_FOLLOW_SYMLINKS=false

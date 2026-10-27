@@ -57,5 +57,7 @@ fs_validation_pipeline_create() {
         "$source" \
         || return 1
 
+    fs_pipeline_step fs_validate_sync_paths "$source" "$destination" || return 1
+
     fs_pipeline_success
 }

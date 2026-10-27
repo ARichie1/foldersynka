@@ -55,6 +55,13 @@ COMMANDS
     remove      Remove a sync profile
     doctor      Diagnose the installation
     ignore      Manage .foldersynkaignore
+    capabilities  Show JSON interface and supported modes
+    inspect     Inspect profile reconciliation state (--json)
+    plan        Preview reconciliation (--json)
+    sync        Reconcile once (--once --json)
+    wait        Reconcile until convergence (--timeout SECONDS)
+    conflicts   List unresolved conflicts (--json)
+    resolve     Select conflict side (--path FILE --take a|b)
     version     Show FolderSynka version
 
 GLOBAL OPTIONS

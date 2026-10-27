@@ -292,6 +292,10 @@ fs_validate_rsync() {
     fs_validate_command rsync
 }
 
+fs_validate_python() {
+    fs_validate_command python3
+}
+
 fs_validate_inotify() {
     fs_validate_command inotifywait
 }
@@ -376,3 +380,11 @@ fs_validate_system() {
 ###############################################################################
 # End
 ###############################################################################
+fs_validate_sync_paths() {
+    fs_validation_reset
+    if ! fs_validate_path_pair "$1" "$2"; then
+        fs_validation_fail "$FS_ERR_DESTINATION_UNSAFE" "destination"
+        return 1
+    fi
+    fs_validation_success
+}

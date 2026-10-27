@@ -1,3 +1,11 @@
+## 1.1.0-beta.1 — 2026-10-26
+
+- Add content-hash copy/mirror/bidirectional reconciliation, JSON integration commands, conflict resolution and retained file bytes.
+- Add a bulk-deletion hold, strict data parsing, canonical root validation, safer defaults and ownership-aware locks.
+- Reconcile both roots periodically in the supervised foreground service.
+- Add agent instructions, development roles, CI, dated reports/progress and offline safety/contract tests.
+- Python 3 is now required. Empty directories, symlinks and metadata transport remain unsupported. Physical Android acceptance is pending.
+
 # Changelog
 
 All notable changes to FolderSynka are documented in this file.

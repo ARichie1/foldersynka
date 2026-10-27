@@ -1,0 +1,19 @@
+name: Offline verification
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install synchronization dependencies
+        run: sudo apt-get update && sudo apt-get install -y rsync inotify-tools
+      - name: Shell syntax
+        run: find core bin -type f \( -name '*.sh' -o -name foldersynka \) -print0 | xargs -0 -n1 bash -n
+      - name: Existing integration lifecycle
+        run: bash tests/test.sh
+      - name: Configuration and root safety
+        run: bash tests/safety.sh
+      - name: Reconciliation and machine contract
+        run: python3 -m unittest discover -s tests -p '*test.py' && python3 tests/bridge_contract.py

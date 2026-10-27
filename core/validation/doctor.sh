@@ -53,6 +53,10 @@ fs_validation_pipeline_doctor() {
         || return 1
 
     fs_pipeline_step \
+        fs_validate_python \
+        || return 1
+
+    fs_pipeline_step \
         fs_validate_rsync \
         || return 1
 
